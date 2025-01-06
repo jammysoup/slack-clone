@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  imageUrl      String?
+  password      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Workspace relationships
+  workspaces    WorkspaceMember[]
+  ownedWorkspaces Workspace[]
+
+  // Message relationships
+  messages      Message[]
+  directMessages DirectMessage[]
+
+  // Channel relationships
+  channels      ChannelMember[]
+}
+
+model Workspace {
+  id          String    @id @default(cuid())
+  name        String
+  imageUrl    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Owner relationship
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id])
+
+  // Other relationships
+  members     WorkspaceMember[]
+  channels    Channel[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  role        String    @default("MEMBER") // OWNER, ADMIN, MEMBER
+  createdAt   DateTime  @default(now())
+  
+  // Relationships
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+model Channel {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  isPrivate   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members     ChannelMember[]
+  messages    Message[]
+
+  @@unique([workspaceId, name])
+}
+
+model ChannelMember {
+  id          String    @id @default(cuid())
+  role        String    @default("MEMBER") // OWNER, MEMBER
+  createdAt   DateTime  @default(now())
+
+  // Relationships
+  channelId   String
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  channelId   String
+  channel     Channel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DirectMessage {
+  id          String    @id @default(cuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  senderId    String
+  sender      User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  
+  @@index([senderId, receiverId])
+}
